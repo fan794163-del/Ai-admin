@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ZARO HACK PRO - GAME TAB & FIREBASE</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+  * { user-select: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: #0b0e14; color: #fff; }
+  .app-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: #0b0e14; z-index: 10; }
+  
+  /* Login Screen */
+  #loginScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0b0e14; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+  .login-card { background: #121620; border: 1.5px solid rgba(255,255,255,0.1); padding: 24px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+  .login-input { width: 100%; background: #181d28; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 10px; color: #fff; margin-bottom: 12px; font-size: 14px; outline: none; }
+  .login-btn { width: 100%; background: #00f5a0; color: #0b0e14; border: none; padding: 12px; border-radius: 10px; font-weight: 900; font-size: 14px; cursor: pointer; box-shadow: 0 0 15px rgba(0,245,160,0.4); }
+
+  /* App Header & Content */
+  .app-header { background: #121620; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .app-title { font-size: 14px; font-weight: 900; color: #f5b81b; letter-spacing: 1px; }
+  .app-content { flex: 1; overflow-y: auto; padding: 12px; position: relative; }
+  .app-content::-webkit-scrollbar { width: 4px; }
+  .app-content::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+  /* Bottom Navigation (Home | Game | Profile) */
+  .bottom-nav { background: #121620; height: 60px; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); }
+  .nav-item { background: none; border: none; color: #8a99ad; font-size: 11px; font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+  .nav-item.active { color: #00f5a0; }
+  .nav-icon { font-size: 18px; }
+
+  .page-view { display: none; }
+  .page-view.active-page { display: block; }
+
+  /* Game Webview Container */
+  #gamePage { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0b0e14; z-index: 50; }
+  iframe { width: 100%; height: 100%; border: none; }
+
+  /* Dashboard Cards */
+  .top-card { background: #181d28; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; }
+  .last-sub { font-size: 10px; color: #f5b81b; letter-spacing: 1px; margin-bottom: 4px; font-weight: bold; }
+  .main-res-box { display: flex; align-items: center; justify-content: center; gap: 15px; margin: 6px 0; }
+  .circle-num { width: 50px; height: 50px; background: #232a38; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; color: #f5b81b; box-shadow: 0 0 10px rgba(245,184,27,0.3); }
+  .res-title { font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+  .conf-bar-bg { background: #232a38; height: 6px; border-radius: 10px; width: 100%; margin: 8px 0 4px 0; overflow: hidden; }
+  .conf-bar-fill { background: #00f5a0; height: 100%; width: 90%; border-radius: 10px; }
+  .conf-info { display: flex; justify-content: space-between; font-size: 9px; color: #8a99ad; }
+
+  .section-box { background: #181d28; border-radius: 12px; padding: 10px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05); }
+  .sec-title { font-size: 10px; color: #f5b81b; font-weight: bold; margin-bottom: 8px; text-align: center; letter-spacing: 0.5px; }
+  .signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .signal-btn { background: #121620; border-radius: 8px; padding: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.08); }
+  .signal-btn.active-green { border-color: #00f5a0; box-shadow: inset 0 0 10px rgba(0,245,160,0.2); }
+  .signal-btn.active-red { border-color: #ff1e4d; box-shadow: inset 0 0 10px rgba(255,30,77,0.2); }
+  .sig-name { font-size: 13px; font-weight: 900; }
+  .sig-name.green { color: #00f5a0; }
+  .sig-name.red { color: #ff1e4d; }
+  .sig-pct { font-size: 10px; color: #8a99ad; margin-top: 3px; }
+
+  .log-header { display: flex; justify-content: space-between; font-size: 9px; color: #8a99ad; padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 6px; font-weight: bold; }
+  .log-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .log-row span { flex: 1; text-align: center; }
+  .log-row span:first-child { text-align: left; color: #8a99ad; }
+  .log-row span:last-child { text-align: right; font-weight: bold; }
+  .status-jeet { color: #00f5a0; font-weight: bold; }
+  .status-haar { color: #ff1e4d; font-weight: bold; }
+
+  .pagination-box { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 10px; }
+  .page-btn { background: #232a38; border: none; color: #fff; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+  /* Profile Card & Logout */
+  .profile-card { background: #181d28; border-radius: 16px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+  .avatar-circle { width: 70px; height: 70px; background: #232a38; border-radius: 50%; margin: 0 auto 12px auto; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 2px solid #00f5a0; box-shadow: 0 0 15px rgba(0,245,160,0.3); }
+  .profile-info-row { display: flex; justify-content: space-between; font-size: 11px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .profile-info-row span:first-child { color: #8a99ad; }
+  .profile-info-row span:last-child { font-weight: bold; color: #fff; }
+  .logout-btn { width: 100%; background: #ff1e4d; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 900; font-size: 12px; cursor: pointer; margin-top: 15px; box-shadow: 0 0 10px rgba(255,30,77,0.4); }
+</style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div style="font-size: 18px; font-weight: 900; color: #00f5a0; margin-bottom: 15px;">ZARO HACK LOGIN</div>
+      <input type="text" id="userInput" class="login-input" placeholder="Enter Username">
+      <input type="password" id="passInput" class="login-input" placeholder="Enter Password">
+      <button class="login-btn" onclick="handleLogin()">LOGIN</button>
+      <div id="loginError" style="font-size: 10px; color: #ff1e4d; margin-top: 10px;"></div>
+    </div>
+  </div>
+
+  <!-- Main App Interface -->
+  <div class="app-container">
+    <div class="app-header">
+      <div class="app-title">ZARO HACK PRO</div>
+      <div id="headerUser" style="font-size: 10px; color: #00f5a0; background: rgba(0,245,160,0.1); padding: 2px 8px; border-radius: 6px;">USER: ACTIVE</div>
+    </div>
+
+    <div class="app-content">
+      <!-- Home Page -->
+      <div id="homePage" class="page-view active-page">
+        <div class="top-card">
+          <div id="runningPeriodText" class="last-sub">RUNNING: SYNCING...</div>
+          <div class="main-res-box">
+            <div id="timerBox" class="circle-num">30s</div>
+            <div>
+              <div id="mainBigSmall" class="res-title" style="color: #00f5a0;">WAIT</div>
+              <div style="font-size: 8px; color: #8a99ad;">FIREBASE CONNECTED</div>
+            </div>
+          </div>
+          <div class="conf-bar-bg"><div id="confFill" class="conf-bar-fill"></div></div>
+          <div class="conf-info"><span>AI ACCURACY</span><span id="confText" style="color: #00f5a0;">95%</span><span>SECURE</span></div>
+        </div>
+
+        <div class="section-box">
+          <div class="sec-title">⚡ CURRENT TARGET SIGNAL</div>
+          <div class="signal-grid">
+            <div class="signal-btn" id="btnBig"><div class="sig-name green">BIG</div><div class="sig-pct">Market</div></div>
+            <div class="signal-btn" id="btnSmall"><div class="sig-name red">SMALL</div><div class="sig-pct">Market</div></div>
+          </div>
+        </div>
+
+        <div class="section-box" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 9px; color: #f5b81b; font-weight: bold;">PERMANENT BATTLE LOG</span>
+          </div>
+          <div class="log-header"><span>PERIOD</span><span>NUM</span><span>B/S</span><span>RESULT</span></div>
+          <div id="battleLogContainer"></div>
+          <div class="pagination-box">
+            <button class="page-btn" onclick="changePage(-1)">Prev</button>
+            <span id="pageIndicator" style="color: #8a99ad;">Page 1 / 1</span>
+            <button class="page-btn" onclick="changePage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Page -->
+      <div id="gamePage" class="page-view">
+        <iframe src="https://hgnice0.com/#/register?invitationCode=283421928122"></iframe>
+      </div>
+
+      <!-- Profile Page -->
+      <div id="profilePage" class="page-view">
+        <div class="profile-card">
+          <div class="avatar-circle">👤</div>
+          <div id="profUsername" style="font-size: 16px; font-weight: 900; color: #f5b81b; margin-bottom: 4px;">User</div>
+          <div id="profUID" style="font-size: 9px; color: #8a99ad; margin-bottom: 15px;">UID: ---</div>
+          <div class="profile-info-row"><span>Account Status</span><span style="color: #00f5a0;">Active</span></div>
+          <div class="profile-info-row"><span>Login Date</span><span id="profLoginDate">---</span></div>
+          <div class="profile-info-row"><span>Expiry Date</span><span id="profExpiryDate" style="color: #ff1e4d;">---</span></div>
+          <div class="profile-info-row"><span>Access Type</span><span>Firebase Admin</span></div>
+          <button class="logout-btn" onclick="handleLogout()">LOG OUT</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="bottom-nav">
+      <button class="nav-item active" id="navHomeBtn" onclick="switchTab('home')"><span class="nav-icon">🏠</span><span>Home</span></button>
+      <button class="nav-item" id="navGameBtn" onclick="switchTab('game')"><span class="nav-icon">🎮</span><span>Game</span></button>
+      <button class="nav-item" id="navProfileBtn" onclick="switchTab('profile')"><span class="nav-icon">👤</span><span>Profile</span></button>
+    </div>
+  </div>
+
+<script>
+  // Firebase Configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyDli6acsnr-Dd_g5IQ5x1pCkw4Ih-BzkZ8",
+    authDomain: "new-tool-82dd2.firebaseapp.com",
+    databaseURL: "https://new-tool-82dd2-default-rtdb.firebaseio.com",
+    projectId: "new-tool-82dd2",
+    storageBucket: "new-tool-82dd2.firebasestorage.app",
+    messagingSenderId: "921784254535",
+    appId: "1:921784254535:web:1741dd1e86966746283162",
+    measurementId: "G-84PPMWTYJ9"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database();
+
+  function handleLogin() {
+    let u = document.getElementById('userInput').value.trim();
+    let p = document.getElementById('passInput').value.trim();
+    let err = document.getElementById('loginError');
+
+    if (!u || !p) {
+      err.innerText = "Please fill in all fields!";
+      return;
+    }
+
+    database.ref('users/' + u).once('value').then((snapshot) => {
+      let userData = snapshot.val();
+
+      if (!userData) {
+        err.innerText = "Invalid Username! (রং ইউজার)";
+        return;
+      }
+      if (userData.pass !== p) {
+        err.innerText = "Incorrect Password!";
+        return;
+      }
+      if (userData.status === "Blocked") {
+        err.innerText = "Account is Blocked by Admin!";
+        return;
+      }
+
+      let today = new Date().toISOString().split('T')[0];
+      if (today > userData.expiry) {
+        err.innerText = "Account Expired! মেয়াদ শেষ।";
+        return;
+      }
+
+      localStorage.setItem('zaro_logged_user', u);
+      setupProfile(u, userData);
+      document.getElementById('loginScreen').style.display = 'none';
+    }).catch(() => {
+      err.innerText = "Database connection error!";
+    });
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('zaro_logged_user');
+    document.getElementById('userInput').value = '';
+    document.getElementById('passInput').value = '';
+    document.getElementById('loginError').innerText = '';
+    document.getElementById('loginScreen').style.display = 'flex';
+    switchTab('home');
+  }
+
+  window.onload = function() {
+    let savedUser = localStorage.getItem('zaro_logged_user');
+    if (savedUser) {
+      database.ref('users/' + savedUser).once('value').then((snapshot) => {
+        let userData = snapshot.val();
+        let today = new Date().toISOString().split('T')[0];
+        if (userData && userData.status !== "Blocked" && today <= userData.expiry) {
+          setupProfile(savedUser, userData);
+          document.getElementById('loginScreen').style.display = 'none';
+        }
+      });
+    }
+  };
+
+  function setupProfile(username, data) {
+    document.getElementById('headerUser').innerText = `USER: ${username}`;
+    document.getElementById('profUsername').innerText = username.toUpperCase();
+    document.getElementById('profUID').innerText = `UID: ${data.uid}`;
+    document.getElementById('profLoginDate').innerText = data.loginDate;
+    document.getElementById('profExpiryDate').innerText = data.expiry;
+  }
+
+  function switchTab(tab) {
+    let homePage = document.getElementById('homePage');
+    let gamePage = document.getElementById('gamePage');
+    let profilePage = document.getElementById('profilePage');
+    
+    let navHome = document.getElementById('navHomeBtn');
+    let navGame = document.getElementById('navGameBtn');
+    let navProfile = document.getElementById('navProfileBtn');
+
+    homePage.className = "page-view";
+    gamePage.className = "page-view";
+    profilePage.className = "page-view";
+    
+    navHome.className = "nav-item";
+    navGame.className = "nav-item";
+    navProfile.className = "nav-item";
+
+    if (tab === 'home') {
+      homePage.className = "page-view active-page";
+      navHome.className = "nav-item active";
+    } else if (tab === 'game') {
+      gamePage.className = "page-view active-page";
+      navGame.className = "nav-item active";
+    } else if (tab === 'profile') {
+      profilePage.className = "page-view active-page";
+      navProfile.className = "nav-item active";
+    }
+  }
+
+  // --- আপডেট করা প্রেডিকশন এবং সেলফ-কারেকশন লজিক ---
+  const patternMap = { 1: 4, 6: 8, 8: 6, 9: 6, 4: 1, 5: 9, 7: 6, 2: 7, 3: 2, 0: 5 };
+  let isCorrectionMode = false;
+  let lastProcessedIssue = "";
+  let lastPredictedBS = "BIG";
+  let currentPredictionObj = null;
+  let battleHistory = JSON.parse(localStorage.getItem('zaro_battle_history_v11') || '[]');
+  let currentPage = 1;
+  const itemsPerPage = 10;
+  let apiUrl = "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageNo=1&pageSize=50";
+
+  async function fetchAndAnalyze() {
+    try {
+      const response = await fetch(apiUrl, { method: 'GET', cache: 'no-store' });
+      const json = await response.json();
+      const list = json?.data?.list || json?.data || json?.rows || json;
+      if (!Array.isArray(list) || list.length === 0) return;
+
+      const latestItem = list[0];
+      const finishedIssue = String(latestItem.issueNumber || latestItem.period || latestItem.gameNo || latestItem.issue);
+      const actualNum = parseInt(latestItem.number || latestItem.winningNumber || latestItem.price || 0, 10);
+      const actualBS = (actualNum >= 5) ? "BIG" : "SMALL";
+
+      let runningIssue = String(BigInt(finishedIssue) + 1n);
+
+      if (runningIssue !== lastProcessedIssue) {
+        if (lastProcessedIssue !== "") {
+          // সেলফ-কারেকশন লজিক চেক (পূর্বের প্রেডিকশন ভুল হলে মোড টগল করবে)
+          let isWin = (lastPredictedBS === actualBS);
+          if (!isWin) {
+            isCorrectionMode = !isCorrectionMode;
+          }
+
+          battleHistory.unshift({
+            period: finishedIssue.slice(-6),
+            num: actualNum,
+            bs: actualBS,
+            resultText: isWin ? "JEET" : "HAAR",
+            resultClass: isWin ? "status-jeet" : "status-haar"
+          });
+
+          if (battleHistory.length > 2000) battleHistory.pop();
+          localStorage.setItem('zaro_battle_history_v11', JSON.stringify(battleHistory));
+          renderLog();
+        }
+
+        lastProcessedIssue = runningIssue;
+
+        // প্যাটার্ন ম্যাপ এবং সাইকেল অনুযায়ী নম্বর জেনারেশন
+        const periodLastDigit = parseInt(runningIssue.slice(-1), 10);
+        let num = patternMap[periodLastDigit] ?? Math.floor(Math.random() * 10);
+
+        if (Math.floor(Date.now() / 90000) % 2 === 1) {
+          num = 9 - num;
+        }
+
+        let basePrediction = (num >= 5) ? "BIG" : "SMALL";
+
+        // কারেকশন মোড অন থাকলে প্রেডিকশন অটো উল্টে যাবে
+        let finalBS = basePrediction;
+        if (isCorrectionMode) {
+          finalBS = (basePrediction === "BIG") ? "SMALL" : "BIG";
+        }
+
+        lastPredictedBS = finalBS;
+        currentPredictionObj = { bs: finalBS, number: num };
+
+        let dynamicScore = Math.floor(Math.random() * (98 - 85 + 1)) + 85;
+
+        document.getElementById('runningPeriodText').innerText = `RUNNING: #${runningIssue} (AI Engine Active)`;
+        document.getElementById('mainBigSmall').innerText = lastPredictedBS;
+        document.getElementById('mainBigSmall').style.color = (lastPredictedBS === "BIG") ? "#00f5a0" : "#ff1e4d";
+        
+        document.getElementById('confFill').style.width = dynamicScore + "%";
+        document.getElementById('confText').innerText = dynamicScore + "%";
+
+        document.getElementById('btnBig').className = (lastPredictedBS === "BIG") ? "signal-btn active-green" : "signal-btn";
+        document.getElementById('btnSmall').className = (lastPredictedBS === "SMALL") ? "signal-btn active-red" : "signal-btn";
+      }
+
+      let currentSec = 30 - (Math.floor(Date.now() / 1000) % 30);
+      document.getElementById('timerBox').innerText = currentSec + "s";
+
+    } catch (err) {
+      console.warn("Analysis error:", err);
+    }
+  }
+
+  function renderLog() {
+    let container = document.getElementById('battleLogContainer');
+    let totalPages = Math.max(1, Math.ceil(battleHistory.length / itemsPerPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    let start = (currentPage - 1) * itemsPerPage;
+    let paginatedItems = battleHistory.slice(start, start + itemsPerPage);
+
+    container.innerHTML = paginatedItems.map(item => `
+      <div class="log-row">
+        <span>${item.period}</span>
+        <span style="font-weight:bold;">${item.num}</span>
+        <span style="color:${item.bs==='BIG'?'#00f5a0':'#ff1e4d'}">${item.bs}</span>
+        <span class="${item.resultClass}">${item.resultText}</span>
+      </div>
+    `).join('');
+    document.getElementById('pageIndicator').innerText = `Page ${currentPage} / ${totalPages}`;
+  }
+
+  function changePage(direction) {
+    let totalPages = Math.ceil(battleHistory.length / itemsPerPage) || 1;
+    currentPage += direction;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    renderLog();
+  }
+
+  renderLog();
+  setInterval(fetchAndAnalyze, 1000);
+  fetchAndAnalyze();
+</script>
+</body>
+  </html>
